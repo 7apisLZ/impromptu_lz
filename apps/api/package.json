@@ -1,0 +1,26 @@
+{
+  "name": "@impromptu/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contracts": {
+      "development": "./src/contracts.ts",
+      "types": "./src/contracts.ts",
+      "default": "./dist/contracts.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@fastify/static": "10.1.4",
+    "@fastify/type-provider-zod": "1.0.0",
+    "fastify": "5.12.5",
+    "livekit-server-sdk": "2.19.0",
+    "zod": "4.6.5"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules/
+apps/api/dist/
+apps/web/build/
+apps/web/.react-router/
+.env
+.env.*
+!deploy/.env.example
+!deploy/opentofu/.env.example
+deploy/secrets/*
+!deploy/secrets/.gitkeep
+deploy/opentofu/.terraform/
+deploy/opentofu/terraform.tfvars
+deploy/opentofu/*.tfstate
+deploy/opentofu/*.tfstate.*
+deploy/opentofu/*.tfplan
