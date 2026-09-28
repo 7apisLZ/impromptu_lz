@@ -55,8 +55,15 @@ test("loads backend topics and enters a debate", async ({ page }) => {
       name: "Can you cheat in a dream?",
     }),
   ).toBeVisible();
-  await expect(page.getByText("Sides filled")).toBeVisible();
-  await expect(page.getByText("1 of 2", { exact: true })).toBeVisible();
+  const participantsButton = page.getByRole("button", {
+    name: "Participants",
+  });
+  await expect(participantsButton).toBeVisible();
+  await participantsButton.click();
+  await expect(page.getByText("Participants (1)")).toBeVisible();
+  await expect(page.getByText(/Playwright Guest/)).toBeVisible();
+  await expect(page.getByText("Owner")).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(
     page.getByText("Spectators").locator("..").getByText("0", { exact: true }),
   ).toBeVisible();
@@ -166,18 +173,34 @@ test("spectators can chat while debaters have a read-only view", async ({
     .getByRole("dialog")
     .getByRole("button", { name: "Debate" })
     .click();
-  await expect(page.getByText("Sides filled", { exact: true })).toBeVisible();
+  const participantsButton = page.getByRole("button", {
+    name: "Participants",
+  });
+  await expect(participantsButton).toBeVisible();
   await expect(page.getByRole("textbox")).toHaveCount(0);
 
   const spectator = await page.context().newPage();
   await spectator.goto("/");
   await spectator.getByRole("button", { name: "Watch live" }).click();
   await expect(
-    spectator.getByRole("textbox", { name: "Display name" }),
+    spectator.getByRole("dialog").getByPlaceholder("Display name"),
   ).toBeVisible();
+  await spectator
+    .getByRole("dialog")
+    .getByPlaceholder("Display name")
+    .fill("Spectator Guest");
+  await spectator
+    .getByRole("dialog")
+    .getByRole("button", { name: "Watch live" })
+    .click();
   await expect(
     page.getByText("Spectators").locator("..").getByText("1", { exact: true }),
   ).toBeVisible();
+
+  await page.getByRole("button", { name: "Participants" }).click();
+  await expect(page.getByText("Participants (2)")).toBeVisible();
+  await expect(page.getByText("Spectator Guest")).toBeVisible();
+  await page.keyboard.press("Escape");
 
   const noVote = spectator.getByRole("button", {
     name: /No: dreams are involuntary/,
@@ -195,10 +218,6 @@ test("spectators can chat while debaters have a read-only view", async ({
   await expect(spectator.getByText("0 spectator votes")).toBeVisible();
 
   await spectator
-    .getByRole("textbox", { name: "Display name" })
-    .fill("Spectator Guest");
-  await spectator.getByRole("button", { name: "Continue" }).click();
-  await spectator
     .getByRole("textbox", { name: "Message" })
     .fill("Hello from spectator");
   await spectator.getByRole("button", { name: "Send message" }).click();
@@ -213,4 +232,52 @@ test("spectators can chat while debaters have a read-only view", async ({
 
   await spectator.getByRole("button", { name: "Leave debate" }).click();
   await page.getByRole("button", { name: "Leave debate" }).click();
+});
+
+test("retains role and display name on page reload while in the debate lobby", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const topic = page.locator('[data-slot="card"]').first();
+  await topic
+    .getByRole("button", {
+      name: /Debate.*Yes: intention still matters/,
+    })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByPlaceholder("Display name").fill("Reloading Debater");
+  await dialog.getByRole("button", { name: "Debate" }).click();
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Can you cheat in a dream?",
+    }),
+  ).toBeVisible();
+
+  // Reload the page
+  await page.reload();
+
+  // Should NOT be kicked out of the lobby
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Can you cheat in a dream?",
+    }),
+  ).toBeVisible();
+
+  // Participant list should still show the user with their display name and debater position
+  await page.getByRole("button", { name: "Participants" }).click();
+  await expect(page.getByText("Participants (1)")).toBeVisible();
+  await expect(page.getByText(/Reloading Debater/)).toBeVisible();
+  await expect(page.getByText("Yes: intention still matters")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("button", { name: "Leave debate" }).click();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Choose a topic and side to debate",
+    }),
+  ).toBeVisible();
 });

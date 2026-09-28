@@ -39,10 +39,16 @@ export async function clientLoader() {
   return getTopics();
 }
 
-type Selection = {
-  topic: TopicStatus;
-  sideIndex: 0 | 1;
-};
+type Selection =
+  | {
+      intent: "debater";
+      sideIndex: 0 | 1;
+      topic: TopicStatus;
+    }
+  | {
+      intent: "spectator";
+      topic: TopicStatus;
+    };
 
 const sideIndexes = [0, 1] as const;
 
@@ -151,7 +157,9 @@ export function TopicList({ topics }: { topics: TopicStatus[] }) {
                       disabled={!available}
                       size="lg"
                       type="button"
-                      onClick={() => setSelection({ topic, sideIndex })}
+                      onClick={() =>
+                        setSelection({ intent: "debater", sideIndex, topic })
+                      }
                     >
                       {available ? "Debate" : "Side taken"}
                       <span className="sr-only">: {side}</span>
@@ -162,21 +170,15 @@ export function TopicList({ topics }: { topics: TopicStatus[] }) {
             </CardContent>
 
             <footer>
-              <Form
-                action={"/debates/" + topic.id}
-                className="w-full"
-                method="post"
+              <Button
+                className="h-14 w-full rounded-none bg-card text-base hover:bg-[#f5f8fb] active:not-aria-[haspopup]:translate-y-0"
+                size="lg"
+                type="button"
+                variant="secondary"
+                onClick={() => setSelection({ intent: "spectator", topic })}
               >
-                <input name="intent" type="hidden" value="spectator" />
-                <Button
-                  className="h-14 w-full rounded-none bg-card text-base hover:bg-[#f5f8fb] active:not-aria-[haspopup]:translate-y-0"
-                  size="lg"
-                  type="submit"
-                  variant="secondary"
-                >
-                  Watch live
-                </Button>
-              </Form>
+                Watch live
+              </Button>
             </footer>
           </Card>
 
@@ -220,18 +222,22 @@ export function TopicList({ topics }: { topics: TopicStatus[] }) {
             >
               <DialogHeader>
                 <DialogTitle className="font-editorial text-xl">
-                  Debate this topic
+                  {selection.intent === "debater"
+                    ? "Debate this topic"
+                    : "Watch this debate"}
                 </DialogTitle>
                 <DialogDescription>{selection.topic.title}</DialogDescription>
               </DialogHeader>
-              <div>
-                <p className="mb-1 text-xs font-medium text-muted-foreground">
-                  Your position
-                </p>
-                <p className="font-medium">
-                  {selection.topic.sides[selection.sideIndex]}
-                </p>
-              </div>
+              {selection.intent === "debater" ? (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">
+                    Your position
+                  </p>
+                  <p className="font-medium">
+                    {selection.topic.sides[selection.sideIndex]}
+                  </p>
+                </div>
+              ) : null}
               <div>
                 <label className="sr-only" htmlFor="display-name">
                   Display name
@@ -247,12 +253,14 @@ export function TopicList({ topics }: { topics: TopicStatus[] }) {
                   title="Enter a display name."
                 />
               </div>
-              <input name="intent" type="hidden" value="debater" />
-              <input
-                name="sideIndex"
-                type="hidden"
-                value={selection.sideIndex}
-              />
+              <input name="intent" type="hidden" value={selection.intent} />
+              {selection.intent === "debater" ? (
+                <input
+                  name="sideIndex"
+                  type="hidden"
+                  value={selection.sideIndex}
+                />
+              ) : null}
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
@@ -262,7 +270,7 @@ export function TopicList({ topics }: { topics: TopicStatus[] }) {
                   Cancel
                 </Button>
                 <Button disabled={isJoining} type="submit">
-                  Debate
+                  {selection.intent === "debater" ? "Debate" : "Watch live"}
                 </Button>
               </div>
             </Form>

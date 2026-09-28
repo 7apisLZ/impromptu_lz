@@ -20,21 +20,25 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const { disconnectRoom, leaveRoom, sendChat, setAttributes, setName } =
-  vi.hoisted(() => ({
-    disconnectRoom: vi.fn<() => Promise<void>>(),
-    leaveRoom:
-      vi.fn<
-        (topicId: string, participantIdentity: string) => Promise<unknown>
-      >(),
-    sendChat: vi.fn<(message: string) => Promise<unknown>>(),
-    setAttributes:
-      vi.fn<(attributes: Record<string, string>) => Promise<void>>(),
-    setName: vi.fn<(name: string) => Promise<void>>(),
-  }));
+const {
+  disconnectRoom,
+  joinRoom,
+  leaveRoom,
+  sendChat,
+  setAttributes,
+  setName,
+} = vi.hoisted(() => ({
+  disconnectRoom: vi.fn<() => Promise<void>>(),
+  joinRoom: vi.fn<(topicId: string, input: unknown) => Promise<unknown>>(),
+  leaveRoom:
+    vi.fn<(topicId: string, participantIdentity: string) => Promise<unknown>>(),
+  sendChat: vi.fn<(message: string) => Promise<unknown>>(),
+  setAttributes: vi.fn<(attributes: Record<string, string>) => Promise<void>>(),
+  setName: vi.fn<(name: string) => Promise<void>>(),
+}));
 
 vi.mock("../api", () => ({
-  joinTopic: vi.fn<() => never>(),
+  joinTopic: joinRoom,
   leaveTopic: leaveRoom,
 }));
 
@@ -90,12 +94,14 @@ vi.mock("@livekit/components-react", () => ({
     {
       attributes: { "debate.vote": "0" },
       identity: "spectator-id",
+      joinedAt: new Date(100),
       name: "Test spectator",
       permissions: { canPublish: false },
     },
     {
       attributes: { "debate.side": "0" },
       identity: "debater-id",
+      joinedAt: new Date(200),
       name: "Debater guest",
       permissions: { canPublish: true },
     },
@@ -115,7 +121,13 @@ vi.mock("@livekit/components-react", () => ({
   ],
 }));
 
-import { DebateExperience } from "./debate";
+import {
+  clientLoader,
+  clearStoredSession,
+  getStoredSession,
+  setStoredSession,
+  DebateExperience,
+} from "./debate";
 
 describe("DebateExperience", () => {
   it("connects spectators without publishing media and lets them vote and chat", async () => {
@@ -163,11 +175,18 @@ describe("DebateExperience", () => {
         minute: "2-digit",
       }).format(new Date(1)),
     );
-    const sidesFilled = screen.getByText("Sides filled").closest("div");
+    const participantsButton = screen.getByRole("button", {
+      name: "Participants",
+    });
+    expect(participantsButton).toBeVisible();
+    fireEvent.click(participantsButton);
+    expect(screen.getByText("Participants (2)")).toBeInTheDocument();
+    expect(screen.getByText("Test spectator")).toBeInTheDocument();
+    expect(screen.getAllByText("Debater guest")).toHaveLength(2);
+    expect(screen.getByText("Owner")).toBeInTheDocument();
     const spectators = screen.getByText("Spectators").closest("div");
-    expect(sidesFilled).not.toBeNull();
     expect(spectators).not.toBeNull();
-    expect(within(sidesFilled!).getByText("1 of 2")).toBeVisible();
+    expect(spectators).toHaveTextContent("1");
     expect(within(spectators!).getByText("1")).toBeVisible();
     expect(
       screen.getByRole("button", {
@@ -259,6 +278,15 @@ describe("DebateExperience", () => {
     expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
     expect(setAttributes).not.toHaveBeenCalled();
     expect(sendChat).not.toHaveBeenCalled();
+
+    const participantsButton = screen.getByRole("button", {
+      name: "Participants",
+    });
+    expect(participantsButton).toBeVisible();
+    fireEvent.click(participantsButton);
+    expect(screen.getByText("Participants (2)")).toBeInTheDocument();
+    expect(screen.getAllByText("Debater guest")).toHaveLength(2);
+    expect(screen.getByText("Test spectator")).toBeInTheDocument();
   });
 
   it("disconnects a debater whose camera or microphone cannot start", async () => {
@@ -295,5 +323,126 @@ describe("DebateExperience", () => {
       "data-connect",
       "false",
     );
+  });
+
+  it("clears stored session on leaving", async () => {
+    disconnectRoom.mockResolvedValue();
+    leaveRoom.mockResolvedValue({ left: true });
+    const join: JoinResult = {
+      topicId: "dream-cheating",
+      topicTitle: "Can you cheat in a dream?",
+      sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+      participantIdentity: "7ffcd8af-4d5a-45d9-97cc-6db63b930b09",
+      displayName: "Test debater",
+      role: "debater",
+      sideIndex: 0,
+      livekitUrl: "ws://localhost:7880",
+      token: "debater-token",
+    };
+
+    setStoredSession(join.topicId, {
+      displayName: join.displayName,
+      participantIdentity: join.participantIdentity,
+      role: join.role,
+      sideIndex: join.sideIndex,
+      topicId: join.topicId,
+    });
+    expect(getStoredSession(join.topicId)).not.toBeNull();
+
+    render(
+      <MemoryRouter>
+        <DebateExperience join={join} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave debate" }));
+    await waitFor(() => expect(disconnectRoom).toHaveBeenCalledOnce());
+    expect(leaveRoom).toHaveBeenCalledWith(
+      join.topicId,
+      join.participantIdentity,
+    );
+    expect(getStoredSession(join.topicId)).toBeNull();
+  });
+
+  describe("clientLoader", () => {
+    it("returns null if no session is stored for the topic", async () => {
+      clearStoredSession("dream-cheating");
+      const result = await clientLoader({
+        params: { topicId: "dream-cheating" },
+      });
+      expect(result).toBeNull();
+    });
+
+    it("restores the debater session and rejoins on page refresh", async () => {
+      const mockResult: JoinResult = {
+        displayName: "Alice",
+        livekitUrl: "ws://localhost:7880",
+        participantIdentity: "alice-identity-123",
+        role: "debater",
+        sideIndex: 0,
+        sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+        token: "fresh-token-123",
+        topicId: "dream-cheating",
+        topicTitle: "Can you cheat in a dream?",
+      };
+      joinRoom.mockResolvedValueOnce(mockResult);
+
+      setStoredSession("dream-cheating", {
+        displayName: "Alice",
+        participantIdentity: "alice-identity-123",
+        role: "debater",
+        sideIndex: 0,
+        topicId: "dream-cheating",
+      });
+
+      const result = await clientLoader({
+        params: { topicId: "dream-cheating" },
+      });
+
+      expect(joinRoom).toHaveBeenCalledWith("dream-cheating", {
+        displayName: "Alice",
+        intent: "debater",
+        participantIdentity: "alice-identity-123",
+        sideIndex: 0,
+      });
+      expect(result).toEqual(mockResult);
+      expect(getStoredSession("dream-cheating")?.participantIdentity).toBe(
+        "alice-identity-123",
+      );
+    });
+
+    it("restores the spectator session and rejoins on page refresh", async () => {
+      const mockResult: JoinResult = {
+        displayName: "Bob Spectator",
+        livekitUrl: "ws://localhost:7880",
+        participantIdentity: "bob-identity-456",
+        role: "spectator",
+        sideIndex: null,
+        sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+        token: "fresh-spectator-token",
+        topicId: "dream-cheating",
+        topicTitle: "Can you cheat in a dream?",
+      };
+      joinRoom.mockResolvedValueOnce(mockResult);
+
+      setStoredSession("dream-cheating", {
+        displayName: "Bob Spectator",
+        participantIdentity: "bob-identity-456",
+        role: "spectator",
+        sideIndex: null,
+        topicId: "dream-cheating",
+      });
+
+      const result = await clientLoader({
+        params: { topicId: "dream-cheating" },
+      });
+
+      expect(joinRoom).toHaveBeenCalledWith("dream-cheating", {
+        displayName: "Bob Spectator",
+        intent: "spectator",
+        participantIdentity: "bob-identity-456",
+      });
+      expect(result).toEqual(mockResult);
+    });
   });
 });

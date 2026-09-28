@@ -108,10 +108,29 @@ describe("TopicList", () => {
     expect(takenSideButtons).toHaveLength(2);
     for (const button of takenSideButtons) expect(button).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Watch live" }));
-    await waitFor(() =>
-      expect(spectate).toHaveBeenCalledWith({ intent: "spectator" }),
+    const spectatorDialog = screen.getByRole("dialog");
+    expect(
+      within(spectatorDialog).getByText("Watch this debate"),
+    ).toBeVisible();
+    expect(
+      within(spectatorDialog).queryByText("Your position"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(spectatorDialog).getByPlaceholderText("Display name"),
+    ).toBeRequired();
+    fireEvent.change(
+      within(spectatorDialog).getByPlaceholderText("Display name"),
+      { target: { value: "Spectator Guest" } },
     );
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(
+      within(spectatorDialog).getByRole("button", { name: "Watch live" }),
+    );
+    await waitFor(() =>
+      expect(spectate).toHaveBeenCalledWith({
+        displayName: "Spectator Guest",
+        intent: "spectator",
+      }),
+    );
   });
 
   it("explains why a debater was returned home", async () => {

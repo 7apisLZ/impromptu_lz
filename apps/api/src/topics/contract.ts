@@ -23,9 +23,14 @@ export const joinBodySchema = z.discriminatedUnion("intent", [
   z.strictObject({
     displayName: z.string().trim().min(1).max(40),
     intent: z.literal("debater"),
+    participantIdentity: z.string().min(1).optional(),
     sideIndex: debateSideSchema,
   }),
-  z.strictObject({ intent: z.literal("spectator") }),
+  z.strictObject({
+    displayName: z.string().trim().min(1).max(40),
+    intent: z.literal("spectator"),
+    participantIdentity: z.string().min(1).optional(),
+  }),
 ]);
 
 export const leaveBodySchema = z.strictObject({
