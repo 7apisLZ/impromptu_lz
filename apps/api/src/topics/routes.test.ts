@@ -156,7 +156,7 @@ describe("API contracts", () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/topics/dream-cheating/join",
-      payload: { displayName: "Spectator", intent: "spectator" },
+      payload: { intent: "spectator" },
     });
 
     expect(response.statusCode).toBe(200);
@@ -168,20 +168,6 @@ describe("API contracts", () => {
       }),
     );
     expect(issued).toEqual(["spectator"]);
-  });
-
-  it("rejects an invalid spectator join request without a display name", async () => {
-    const { gateway, issued } = fakeLiveKit();
-    const app = await testApp(gateway);
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/topics/dream-cheating/join",
-      payload: { displayName: "", intent: "spectator" },
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(issued).toEqual([]);
   });
 
   it("releases a pending debater reservation when its participant leaves", async () => {
@@ -223,50 +209,6 @@ describe("API contracts", () => {
       availableResponse.json(),
     );
     expect(availableTopics[0]?.debaterCount).toBe(0);
-  });
-
-  it("allows an existing debater or spectator to rejoin with their participant identity", async () => {
-    const { gateway, issued } = fakeLiveKit();
-    const app = await testApp(gateway);
-
-    const firstJoinResponse = await app.inject({
-      method: "POST",
-      url: "/api/topics/dream-cheating/join",
-      payload: debaterInput,
-    });
-    const firstJoin = apiContract.join.response.parse(firstJoinResponse.json());
-    expect(firstJoin.participantIdentity).toBeDefined();
-
-    // Rejoining as the same debater with the same participantIdentity succeeds
-    const rejoinResponse = await app.inject({
-      method: "POST",
-      url: "/api/topics/dream-cheating/join",
-      payload: {
-        displayName: "Test debater",
-        intent: "debater",
-        participantIdentity: firstJoin.participantIdentity,
-        sideIndex: 0,
-      },
-    });
-
-    expect(rejoinResponse.statusCode).toBe(200);
-    const rejoin = apiContract.join.response.parse(rejoinResponse.json());
-    expect(rejoin.participantIdentity).toBe(firstJoin.participantIdentity);
-    expect(rejoin.role).toBe("debater");
-    expect(rejoin.sideIndex).toBe(0);
-    expect(issued).toEqual(["debater", "debater"]);
-
-    // A different participant trying to take side 0 is rejected
-    const conflictResponse = await app.inject({
-      method: "POST",
-      url: "/api/topics/dream-cheating/join",
-      payload: {
-        displayName: "Another debater",
-        intent: "debater",
-        sideIndex: 0,
-      },
-    });
-    expect(conflictResponse.statusCode).toBe(409);
   });
 
   it("rejects an unknown topic", async () => {

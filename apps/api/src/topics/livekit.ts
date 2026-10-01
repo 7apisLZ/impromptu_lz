@@ -153,9 +153,6 @@ export function createRoleAllocator(
     else pending.set(topicId, reservations);
 
     return {
-      active,
-      activeDebaters,
-      reservations,
       debaterIdentities: new Set([...activeDebaters, ...reservations.keys()]),
       occupiedSides: new Set([
         ...active.flatMap((participant) =>
@@ -208,51 +205,24 @@ export function createRoleAllocator(
       }
 
       return inTopicLock(topicId, async () => {
-        const { active, reservations } = await occupancy(topicId);
-
-        const otherDebaters = new Set([
-          ...active
-            .filter(
-              (participant) =>
-                participant.role === "debater" &&
-                participant.identity !== identity,
-            )
-            .map((participant) => participant.identity),
-          ...[...reservations.keys()].filter(
-            (resIdentity) => resIdentity !== identity,
-          ),
-        ]);
-
-        const sideOccupiedByOther =
-          active.some(
-            (participant) =>
-              participant.role === "debater" &&
-              participant.sideIndex === requestedSide &&
-              participant.identity !== identity,
-          ) ||
-          [...reservations.entries()].some(
-            ([resIdentity, reservation]) =>
-              reservation.sideIndex === requestedSide &&
-              resIdentity !== identity,
-          );
-
+        const { debaterIdentities, occupiedSides } = await occupancy(topicId);
         if (
           requestedSide === null ||
-          otherDebaters.size >= 2 ||
-          sideOccupiedByOther
+          debaterIdentities.size >= 2 ||
+          occupiedSides.has(requestedSide)
         ) {
           return undefined;
         }
         const sideIndex = requestedSide;
 
-        const currentReservations =
+        const reservations =
           pending.get(topicId) ??
           new Map<string, { expiresAt: number; sideIndex: DebateSide }>();
-        currentReservations.set(identity, {
+        reservations.set(identity, {
           expiresAt: Date.now() + tokenTtlSeconds * 1000,
           sideIndex,
         });
-        pending.set(topicId, currentReservations);
+        pending.set(topicId, reservations);
 
         try {
           const token = await livekit.issueToken({

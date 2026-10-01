@@ -15,15 +15,12 @@ import type { CSSProperties, ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-});
-
+<<<<<<< HEAD
 const {
   disconnectRoom,
   joinRoom,
   leaveRoom,
+  mockParticipants,
   sendChat,
   setAttributes,
   setName,
@@ -32,13 +29,77 @@ const {
   joinRoom: vi.fn<(topicId: string, input: unknown) => Promise<unknown>>(),
   leaveRoom:
     vi.fn<(topicId: string, participantIdentity: string) => Promise<unknown>>(),
+  mockParticipants: {
+    current: [
+      {
+        attributes: { "debate.vote": "0" },
+        identity: "spectator-id",
+        joinedAt: new Date(100),
+        name: "Test spectator",
+        permissions: { canPublish: false },
+      },
+      {
+        attributes: { "debate.side": "0" },
+        identity: "debater-id",
+        joinedAt: new Date(200),
+        name: "Debater guest",
+        permissions: { canPublish: true },
+      },
+    ] as Array<{
+      attributes: Record<string, string>;
+      identity: string;
+      joinedAt: Date;
+      name: string;
+      permissions: { canPublish: boolean };
+    }>,
+  },
   sendChat: vi.fn<(message: string) => Promise<unknown>>(),
   setAttributes: vi.fn<(attributes: Record<string, string>) => Promise<void>>(),
   setName: vi.fn<(name: string) => Promise<void>>(),
 }));
+=======
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+const { disconnectRoom, leaveRoom, sendChat, setAttributes, setName } =
+  vi.hoisted(() => ({
+    disconnectRoom: vi.fn<() => Promise<void>>(),
+    leaveRoom:
+      vi.fn<
+        (topicId: string, participantIdentity: string) => Promise<unknown>
+      >(),
+    sendChat: vi.fn<(message: string) => Promise<unknown>>(),
+    setAttributes:
+      vi.fn<(attributes: Record<string, string>) => Promise<void>>(),
+    setName: vi.fn<(name: string) => Promise<void>>(),
+  }));
+>>>>>>> parent of 9d1b2bc (features: spectator list in lobby, refresh makes user remain in lobby, spectators must have display names)
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  mockParticipants.current = [
+    {
+      attributes: { "debate.vote": "0" },
+      identity: "spectator-id",
+      joinedAt: new Date(100),
+      name: "Test spectator",
+      permissions: { canPublish: false },
+    },
+    {
+      attributes: { "debate.side": "0" },
+      identity: "debater-id",
+      joinedAt: new Date(200),
+      name: "Debater guest",
+      permissions: { canPublish: true },
+    },
+  ];
+});
 
 vi.mock("../api", () => ({
-  joinTopic: joinRoom,
+  joinTopic: vi.fn<() => never>(),
   leaveTopic: leaveRoom,
 }));
 
@@ -90,22 +151,24 @@ vi.mock("@livekit/components-react", () => ({
     isSending: false,
     send: sendChat,
   }),
+<<<<<<< HEAD
+  useParticipants: () => mockParticipants.current,
+=======
   useParticipants: () => [
     {
       attributes: { "debate.vote": "0" },
       identity: "spectator-id",
-      joinedAt: new Date(100),
       name: "Test spectator",
       permissions: { canPublish: false },
     },
     {
       attributes: { "debate.side": "0" },
       identity: "debater-id",
-      joinedAt: new Date(200),
       name: "Debater guest",
       permissions: { canPublish: true },
     },
   ],
+>>>>>>> parent of 9d1b2bc (features: spectator list in lobby, refresh makes user remain in lobby, spectators must have display names)
   useRoomContext: () => ({
     disconnect: disconnectRoom,
     localParticipant: {
@@ -121,13 +184,7 @@ vi.mock("@livekit/components-react", () => ({
   ],
 }));
 
-import {
-  clientLoader,
-  clearStoredSession,
-  getStoredSession,
-  setStoredSession,
-  DebateExperience,
-} from "./debate";
+import { DebateExperience } from "./debate";
 
 describe("DebateExperience", () => {
   it("connects spectators without publishing media and lets them vote and chat", async () => {
@@ -148,7 +205,7 @@ describe("DebateExperience", () => {
 
     render(
       <MemoryRouter>
-        <DebateExperience join={join} />
+        <DebateExperience initialLobbyState="VOTING" join={join} />
       </MemoryRouter>,
     );
 
@@ -175,18 +232,11 @@ describe("DebateExperience", () => {
         minute: "2-digit",
       }).format(new Date(1)),
     );
-    const participantsButton = screen.getByRole("button", {
-      name: "Participants",
-    });
-    expect(participantsButton).toBeVisible();
-    fireEvent.click(participantsButton);
-    expect(screen.getByText("Participants (2)")).toBeInTheDocument();
-    expect(screen.getByText("Test spectator")).toBeInTheDocument();
-    expect(screen.getAllByText("Debater guest")).toHaveLength(2);
-    expect(screen.getByText("Owner")).toBeInTheDocument();
+    const sidesFilled = screen.getByText("Sides filled").closest("div");
     const spectators = screen.getByText("Spectators").closest("div");
+    expect(sidesFilled).not.toBeNull();
     expect(spectators).not.toBeNull();
-    expect(spectators).toHaveTextContent("1");
+    expect(within(sidesFilled!).getByText("1 of 2")).toBeVisible();
     expect(within(spectators!).getByText("1")).toBeVisible();
     expect(
       screen.getByRole("button", {
@@ -248,7 +298,7 @@ describe("DebateExperience", () => {
 
     render(
       <MemoryRouter>
-        <DebateExperience join={join} />
+        <DebateExperience initialLobbyState="VOTING" join={join} />
       </MemoryRouter>,
     );
 
@@ -278,15 +328,200 @@ describe("DebateExperience", () => {
     expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
     expect(setAttributes).not.toHaveBeenCalled();
     expect(sendChat).not.toHaveBeenCalled();
+  });
 
-    const participantsButton = screen.getByRole("button", {
-      name: "Participants",
-    });
-    expect(participantsButton).toBeVisible();
-    fireEvent.click(participantsButton);
-    expect(screen.getByText("Participants (2)")).toBeInTheDocument();
-    expect(screen.getAllByText("Debater guest")).toHaveLength(2);
-    expect(screen.getByText("Test spectator")).toBeInTheDocument();
+  it("defaults initial lobby state to 'WAITING'", () => {
+    const join: JoinResult = {
+      topicId: "dream-cheating",
+      topicTitle: "Can you cheat in a dream?",
+      sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+      participantIdentity: "7ffcd8af-4d5a-45d9-97cc-6db63b930b09",
+      displayName: "Test spectator",
+      role: "spectator",
+      sideIndex: null,
+      livekitUrl: "ws://localhost:7880",
+      token: "spectator-token",
+    };
+
+    render(
+      <MemoryRouter>
+        <DebateExperience join={join} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("Audience vote")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Begin Debate" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides audience voting and hides Begin Debate button in 'WAITING' when not meeting 2 debaters and 1 spectator", () => {
+    const join: JoinResult = {
+      topicId: "dream-cheating",
+      topicTitle: "Can you cheat in a dream?",
+      sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+      participantIdentity: "7ffcd8af-4d5a-45d9-97cc-6db63b930b09",
+      displayName: "Test spectator",
+      role: "spectator",
+      sideIndex: null,
+      livekitUrl: "ws://localhost:7880",
+      token: "spectator-token",
+    };
+
+    render(
+      <MemoryRouter>
+        <DebateExperience initialLobbyState="WAITING" join={join} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("Audience vote")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Begin Debate" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("displays Begin Debate button to everyone in 'WAITING' when there are 2 debaters and 1 spectator", () => {
+    mockParticipants.current = [
+      {
+        attributes: {},
+        identity: "spectator-1",
+        joinedAt: new Date(100),
+        name: "Spectator 1",
+        permissions: { canPublish: false },
+      },
+      {
+        attributes: { "debate.side": "0" },
+        identity: "debater-1",
+        joinedAt: new Date(200),
+        name: "Debater 1",
+        permissions: { canPublish: true },
+      },
+      {
+        attributes: { "debate.side": "1" },
+        identity: "debater-2",
+        joinedAt: new Date(300),
+        name: "Debater 2",
+        permissions: { canPublish: true },
+      },
+    ];
+
+    const spectatorJoin: JoinResult = {
+      topicId: "dream-cheating",
+      topicTitle: "Can you cheat in a dream?",
+      sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+      participantIdentity: "spectator-1",
+      displayName: "Spectator 1",
+      role: "spectator",
+      sideIndex: null,
+      livekitUrl: "ws://localhost:7880",
+      token: "spectator-token",
+    };
+
+    const { unmount } = render(
+      <MemoryRouter>
+        <DebateExperience initialLobbyState="WAITING" join={spectatorJoin} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "Begin Debate" })).toBeVisible();
+    expect(screen.queryByText("Audience vote")).not.toBeInTheDocument();
+
+    unmount();
+
+    const debaterJoin: JoinResult = {
+      topicId: "dream-cheating",
+      topicTitle: "Can you cheat in a dream?",
+      sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+      participantIdentity: "debater-1",
+      displayName: "Debater 1",
+      role: "debater",
+      sideIndex: 0,
+      livekitUrl: "ws://localhost:7880",
+      token: "debater-token",
+    };
+
+    render(
+      <MemoryRouter>
+        <DebateExperience initialLobbyState="WAITING" join={debaterJoin} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "Begin Debate" })).toBeVisible();
+    expect(screen.queryByText("Audience vote")).not.toBeInTheDocument();
+  });
+
+  it("hides audience voting and Begin Debate button in 'IN PROGRESS'", () => {
+    mockParticipants.current = [
+      {
+        attributes: {},
+        identity: "spectator-1",
+        joinedAt: new Date(100),
+        name: "Spectator 1",
+        permissions: { canPublish: false },
+      },
+      {
+        attributes: { "debate.side": "0" },
+        identity: "debater-1",
+        joinedAt: new Date(200),
+        name: "Debater 1",
+        permissions: { canPublish: true },
+      },
+      {
+        attributes: { "debate.side": "1" },
+        identity: "debater-2",
+        joinedAt: new Date(300),
+        name: "Debater 2",
+        permissions: { canPublish: true },
+      },
+    ];
+
+    const join: JoinResult = {
+      topicId: "dream-cheating",
+      topicTitle: "Can you cheat in a dream?",
+      sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+      participantIdentity: "spectator-1",
+      displayName: "Spectator 1",
+      role: "spectator",
+      sideIndex: null,
+      livekitUrl: "ws://localhost:7880",
+      token: "spectator-token",
+    };
+
+    render(
+      <MemoryRouter>
+        <DebateExperience initialLobbyState="IN PROGRESS" join={join} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("Audience vote")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Begin Debate" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("displays audience voting and hides Begin Debate button in 'ENDED'", () => {
+    const join: JoinResult = {
+      topicId: "dream-cheating",
+      topicTitle: "Can you cheat in a dream?",
+      sides: ["Yes: intention still matters", "No: dreams are involuntary"],
+      participantIdentity: "7ffcd8af-4d5a-45d9-97cc-6db63b930b09",
+      displayName: "Test spectator",
+      role: "spectator",
+      sideIndex: null,
+      livekitUrl: "ws://localhost:7880",
+      token: "spectator-token",
+    };
+
+    render(
+      <MemoryRouter>
+        <DebateExperience initialLobbyState="ENDED" join={join} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Audience vote")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Begin Debate" }),
+    ).not.toBeInTheDocument();
   });
 
   it("disconnects a debater whose camera or microphone cannot start", async () => {
@@ -323,126 +558,5 @@ describe("DebateExperience", () => {
       "data-connect",
       "false",
     );
-  });
-
-  it("clears stored session on leaving", async () => {
-    disconnectRoom.mockResolvedValue();
-    leaveRoom.mockResolvedValue({ left: true });
-    const join: JoinResult = {
-      topicId: "dream-cheating",
-      topicTitle: "Can you cheat in a dream?",
-      sides: ["Yes: intention still matters", "No: dreams are involuntary"],
-      participantIdentity: "7ffcd8af-4d5a-45d9-97cc-6db63b930b09",
-      displayName: "Test debater",
-      role: "debater",
-      sideIndex: 0,
-      livekitUrl: "ws://localhost:7880",
-      token: "debater-token",
-    };
-
-    setStoredSession(join.topicId, {
-      displayName: join.displayName,
-      participantIdentity: join.participantIdentity,
-      role: join.role,
-      sideIndex: join.sideIndex,
-      topicId: join.topicId,
-    });
-    expect(getStoredSession(join.topicId)).not.toBeNull();
-
-    render(
-      <MemoryRouter>
-        <DebateExperience join={join} />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Leave debate" }));
-    await waitFor(() => expect(disconnectRoom).toHaveBeenCalledOnce());
-    expect(leaveRoom).toHaveBeenCalledWith(
-      join.topicId,
-      join.participantIdentity,
-    );
-    expect(getStoredSession(join.topicId)).toBeNull();
-  });
-
-  describe("clientLoader", () => {
-    it("returns null if no session is stored for the topic", async () => {
-      clearStoredSession("dream-cheating");
-      const result = await clientLoader({
-        params: { topicId: "dream-cheating" },
-      });
-      expect(result).toBeNull();
-    });
-
-    it("restores the debater session and rejoins on page refresh", async () => {
-      const mockResult: JoinResult = {
-        displayName: "Alice",
-        livekitUrl: "ws://localhost:7880",
-        participantIdentity: "alice-identity-123",
-        role: "debater",
-        sideIndex: 0,
-        sides: ["Yes: intention still matters", "No: dreams are involuntary"],
-        token: "fresh-token-123",
-        topicId: "dream-cheating",
-        topicTitle: "Can you cheat in a dream?",
-      };
-      joinRoom.mockResolvedValueOnce(mockResult);
-
-      setStoredSession("dream-cheating", {
-        displayName: "Alice",
-        participantIdentity: "alice-identity-123",
-        role: "debater",
-        sideIndex: 0,
-        topicId: "dream-cheating",
-      });
-
-      const result = await clientLoader({
-        params: { topicId: "dream-cheating" },
-      });
-
-      expect(joinRoom).toHaveBeenCalledWith("dream-cheating", {
-        displayName: "Alice",
-        intent: "debater",
-        participantIdentity: "alice-identity-123",
-        sideIndex: 0,
-      });
-      expect(result).toEqual(mockResult);
-      expect(getStoredSession("dream-cheating")?.participantIdentity).toBe(
-        "alice-identity-123",
-      );
-    });
-
-    it("restores the spectator session and rejoins on page refresh", async () => {
-      const mockResult: JoinResult = {
-        displayName: "Bob Spectator",
-        livekitUrl: "ws://localhost:7880",
-        participantIdentity: "bob-identity-456",
-        role: "spectator",
-        sideIndex: null,
-        sides: ["Yes: intention still matters", "No: dreams are involuntary"],
-        token: "fresh-spectator-token",
-        topicId: "dream-cheating",
-        topicTitle: "Can you cheat in a dream?",
-      };
-      joinRoom.mockResolvedValueOnce(mockResult);
-
-      setStoredSession("dream-cheating", {
-        displayName: "Bob Spectator",
-        participantIdentity: "bob-identity-456",
-        role: "spectator",
-        sideIndex: null,
-        topicId: "dream-cheating",
-      });
-
-      const result = await clientLoader({
-        params: { topicId: "dream-cheating" },
-      });
-
-      expect(joinRoom).toHaveBeenCalledWith("dream-cheating", {
-        displayName: "Bob Spectator",
-        intent: "spectator",
-        participantIdentity: "bob-identity-456",
-      });
-      expect(result).toEqual(mockResult);
-    });
   });
 });

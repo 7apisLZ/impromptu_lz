@@ -4,6 +4,13 @@ import { healthSchema } from "../health/contract.js";
 
 export const debateSideSchema = z.union([z.literal(0), z.literal(1)]);
 
+export const debateLobbyStateSchema = z.enum([
+  "WAITING",
+  "IN PROGRESS",
+  "VOTING",
+  "ENDED",
+]);
+
 export const topicStatusSchema = z.strictObject({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -23,14 +30,9 @@ export const joinBodySchema = z.discriminatedUnion("intent", [
   z.strictObject({
     displayName: z.string().trim().min(1).max(40),
     intent: z.literal("debater"),
-    participantIdentity: z.string().min(1).optional(),
     sideIndex: debateSideSchema,
   }),
-  z.strictObject({
-    displayName: z.string().trim().min(1).max(40),
-    intent: z.literal("spectator"),
-    participantIdentity: z.string().min(1).optional(),
-  }),
+  z.strictObject({ intent: z.literal("spectator") }),
 ]);
 
 export const leaveBodySchema = z.strictObject({
@@ -82,6 +84,7 @@ export const topicContracts = {
   },
 } as const;
 
+export type DebateLobbyState = z.output<typeof debateLobbyStateSchema>;
 export type TopicStatus = z.output<typeof topicStatusSchema>;
 export type JoinInput = z.output<typeof joinBodySchema>;
 export type JoinResult = z.output<typeof joinResultSchema>;

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="a654cd31-56a7-47ac-b5f0-2437a0d135dd" name="Changes" comment="&quot;features: spectator list in lobby, refresh makes user remain in lobby, spectators must have display names&quot;" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.6397534331761592" />
+      <entry key="MS500" value="2.5904384189302303" />
+      <entry key="S2" value="2.9095331268583817" />
+      <entry key="S5" value="3.5143538863395034" />
+      <entry key="S10" value="4.64995516018792" />
+      <entry key="S30" value="6.463339787542937" />
+      <entry key="S60" value="7.1620881264652585" />
+      <entry key="M2" value="7.562025880760746" />
+      <entry key="M5" value="7.820020794128592" />
+      <entry key="M10" value="7.909192591160645" />
+      <entry key="M15" value="7.9392785161520445" />
+      <entry key="M30" value="7.969547280456777" />
+      <entry key="H1" value="7.984750575812647" />
+      <entry key="H2" value="7.992369513558383" />
+      <entry key="H4" value="7.996631821656647" />
+      <entry key="D1" value="94.7093332889782" />
+      <entry key="W1" value="808.8612975567496" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="0.0" />
+      <entry key="S60" value="0.0" />
+      <entry key="M2" value="0.0" />
+      <entry key="M5" value="0.0" />
+      <entry key="M10" value="7.094439701394696E-173" />
+      <entry key="M15" value="1.7137418451345922E-115" />
+      <entry key="M30" value="4.1397365195560286E-58" />
+      <entry key="H1" value="2.0346342471205988E-29" />
+      <entry key="H2" value="4.510692016886765E-15" />
+      <entry key="H4" value="6.71616856316652E-8" />
+      <entry key="D1" value="0.06375588294456146" />
+      <entry key="W1" value="0.6748654279675168" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="1.4874400379491428" />
+      <entry key="MS500" value="2.5377999097004666" />
+      <entry key="S2" value="2.894326869751088" />
+      <entry key="S5" value="3.5052766876362993" />
+      <entry key="S10" value="4.642458008975947" />
+      <entry key="S30" value="6.459255785301016" />
+      <entry key="S60" value="7.159740262895573" />
+      <entry key="M2" value="7.5607643832752425" />
+      <entry key="M5" value="7.819493595932934" />
+      <entry key="M10" value="7.908925086195141" />
+      <entry key="M15" value="7.939099300942106" />
+      <entry key="M30" value="7.969457230892784" />
+      <entry key="H1" value="7.984705440036615" />
+      <entry key="H2" value="7.992346917858603" />
+      <entry key="H4" value="7.9966205833040185" />
+      <entry key="D1" value="94.77307067971041" />
+      <entry key="W1" value="809.536142119823" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3JhGVYaimQcE623G6cm9ZOuMq3w" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Docker.Docker.executor": "Run",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHELLCHECK.PATH": "C:\\Users\\aquas\\AppData\\Roaming\\JetBrains\\WebStorm2026.2\\plugins\\Shell Script\\shellcheck.exe",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "javascript.preferred.runtime.type.id": "node",
+    "junie.onboarding.icon.badge.shown": "true",
+    "junie.plugin.stays.banner.dismissed": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "npm.build.executor": "Run",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "ts.external.directory.path": "C:\\Users\\aquas\\WebstormProjects\\impromptu_lz\\node_modules\\@typescript\\typescript-win32-x64\\lib"
+  }
+}]]></component>
+  <component name="RunManager" selected="Docker.Docker">
+    <configuration name="Docker" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+      <deployment type="docker-compose.yml">
+        <settings>
+          <option name="sourceFilePath" value="compose.yaml" />
+        </settings>
+      </deployment>
+      <method v="2" />
+    </configuration>
+    <configuration name="build" type="js.build_tools.npm" temporary="true" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="build" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Docker.Docker" />
+      <item itemvalue="npm.build" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="npm.build" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-4abd2a77f808-JavaScript-WS-262.10315.144" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="a654cd31-56a7-47ac-b5f0-2437a0d135dd" name="Changes" comment="" />
+      <created>1790105913394</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1790105913394</updated>
+      <workItem from="1790105913717" duration="1991000" />
+      <workItem from="1790107946467" duration="1125000" />
+      <workItem from="1790201162326" duration="5248000" />
+      <workItem from="1790548412294" duration="11641000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="&quot;features: spectator list in lobby, refresh makes user remain in lobby, spectators must have display names&quot;" />
+    <option name="LAST_COMMIT_MESSAGE" value="&quot;features: spectator list in lobby, refresh makes user remain in lobby, spectators must have display names&quot;" />
+  </component>
+</project>

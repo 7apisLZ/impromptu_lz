@@ -1,7 +1,7 @@
 import {
   PRODUCT,
+  type DebateLobbyState,
   joinBodySchema,
-  type JoinInput,
   type JoinResult,
 } from "@impromptu/api/contracts";
 import {
@@ -13,7 +13,7 @@ import {
   useRoomContext,
   useTracks,
 } from "@livekit/components-react";
-import { LogOutIcon, SendIcon, SmileIcon, UserIcon } from "lucide-react";
+import { LogOutIcon, SendIcon, SmileIcon } from "lucide-react";
 import { Track, VideoPresets } from "livekit-client";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
@@ -22,7 +22,6 @@ import {
   Link,
   Navigate,
   useActionData,
-  useLoaderData,
   useNavigate,
 } from "react-router";
 
@@ -53,9 +52,6 @@ import {
 import {
   Popover,
   PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
   PopoverTrigger,
 } from "~/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
@@ -80,86 +76,6 @@ export function meta() {
   return [{ title: PRODUCT.name }];
 }
 
-export type StoredSession = {
-  displayName: string;
-  participantIdentity: string;
-  role: "debater" | "spectator";
-  sideIndex: 0 | 1 | null;
-  topicId: string;
-};
-
-export function getStoredSession(topicId: string): StoredSession | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(`impromptu:session:${topicId}`);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-export function setStoredSession(topicId: string, session: StoredSession) {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.setItem(
-      `impromptu:session:${topicId}`,
-      JSON.stringify(session),
-    );
-  } catch {}
-}
-
-export function clearStoredSession(topicId: string) {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.removeItem(`impromptu:session:${topicId}`);
-  } catch {}
-}
-
-export async function clientLoader({
-  params,
-}: {
-  params: { topicId?: string };
-}) {
-  if (!params.topicId) return null;
-  const session = getStoredSession(params.topicId);
-  if (!session) return null;
-
-  try {
-    const input: JoinInput =
-      session.role === "debater" &&
-      (session.sideIndex === 0 || session.sideIndex === 1)
-        ? {
-            displayName: session.displayName,
-            intent: "debater",
-            participantIdentity: session.participantIdentity,
-            sideIndex: session.sideIndex,
-          }
-        : {
-            displayName: session.displayName,
-            intent: "spectator",
-            participantIdentity: session.participantIdentity,
-          };
-
-    const result = await joinTopic(params.topicId, input);
-    if ("code" in result) {
-      clearStoredSession(params.topicId);
-      return result;
-    }
-    setStoredSession(result.topicId, {
-      displayName: result.displayName,
-      participantIdentity: result.participantIdentity,
-      role: result.role,
-      sideIndex: result.sideIndex,
-      topicId: result.topicId,
-    });
-    return result;
-  } catch {
-    clearStoredSession(params.topicId);
-    return null;
-  }
-}
-
 export async function clientAction({
   params,
   request,
@@ -172,17 +88,7 @@ export async function clientAction({
       ? { ...values, sideIndex: Number(values.sideIndex) }
       : values,
   );
-  const result = await joinTopic(params.topicId, input);
-  if (!("code" in result)) {
-    setStoredSession(result.topicId, {
-      displayName: result.displayName,
-      participantIdentity: result.participantIdentity,
-      role: result.role,
-      sideIndex: result.sideIndex,
-      topicId: result.topicId,
-    });
-  }
-  return result;
+  return joinTopic(params.topicId, input);
 }
 
 function DebateVideos({ sides }: { sides: JoinResult["sides"] }) {
@@ -290,9 +196,7 @@ function RoomChat({
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string>();
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [hasCustomDisplayName, setHasCustomDisplayName] = useState(false);
-  const hasDisplayName =
-    Boolean(room.localParticipant?.name) || hasCustomDisplayName;
+  const [hasDisplayName, setHasDisplayName] = useState(false);
   const [isNaming, setIsNaming] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
@@ -306,7 +210,7 @@ function RoomChat({
       if (!hasDisplayName) {
         setIsNaming(true);
         await room.localParticipant.setName(value);
-        setHasCustomDisplayName(true);
+        setHasDisplayName(true);
       } else {
         await send(value);
       }
@@ -447,29 +351,14 @@ function RoomChat({
   );
 }
 
-function findLobbyOwner<T extends { joinedAt?: Date | number | string }>(
-  participants: readonly T[],
-): T | undefined {
-  if (participants.length === 0) return undefined;
-  const first = participants[0];
-  if (!first) return undefined;
-  return participants.reduce<T>((earliest, p) => {
-    const earliestTime = earliest.joinedAt
-      ? new Date(earliest.joinedAt).getTime()
-      : Infinity;
-    const pTime = p.joinedAt ? new Date(p.joinedAt).getTime() : Infinity;
-    if (Number.isNaN(pTime)) return earliest;
-    if (Number.isNaN(earliestTime)) return p;
-    return pTime < earliestTime ? p : earliest;
-  }, first);
-}
-
 function AudiencePanel({
   canVote,
+  lobbyState = "WAITING",
   participantIdentity,
   sides,
 }: {
   canVote: boolean;
+  lobbyState?: DebateLobbyState;
   participantIdentity: string;
   sides: JoinResult["sides"];
 }) {
@@ -477,9 +366,18 @@ function AudiencePanel({
   const room = useRoomContext();
   const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState<string>();
+  const debaters = participants.filter
+    ((participant) => participant.permissions?.canPublish === true,
+  );
+
+  const debaterCount = participants.filter(
+    (participant) => participant.permissions?.canPublish === true,
+  ).length;
+
   const spectators = participants.filter(
     (participant) => participant.permissions?.canPublish !== true,
   );
+  //const debaterCount = debaters.length;
   const spectatorCount = spectators.length;
   const rawVote = room.localParticipant.attributes[VOTE_ATTRIBUTE];
   const selectedVote =
@@ -492,7 +390,10 @@ function AudiencePanel({
       ).length,
   );
   const voteTotal = voteCounts.reduce((total, count) => total + count, 0);
-  const owner = findLobbyOwner(participants);
+
+  const showVoting = lobbyState === "VOTING" || lobbyState === "ENDED";
+  const canBeginDebate =
+    lobbyState === "WAITING" && debaterCount >= 2 && spectatorCount >= 1;
 
   async function vote(value: readonly string[]) {
     if (!canVote) return;
@@ -514,79 +415,12 @@ function AudiencePanel({
   return (
     <aside className="flex min-h-0 flex-col bg-background">
       <section className="bg-primary/5 px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger
-                render={
-                  <Button
-                    aria-label="Participants"
-                    size="icon"
-                    type="button"
-                    variant="outline"
-                  />
-                }
-              >
-                <UserIcon className="size-4" />
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="max-h-96 w-80 overflow-y-auto p-3"
-              >
-                <PopoverHeader className="pb-2">
-                  <PopoverTitle className="text-sm font-semibold">
-                    Participants ({participants.length})
-                  </PopoverTitle>
-                  <PopoverDescription className="text-xs">
-                    Users currently in this debate lobby
-                  </PopoverDescription>
-                </PopoverHeader>
-                <div className="flex flex-col divide-y divide-border/60">
-                  {participants.map((participant) => {
-                    const isDebater =
-                      participant.permissions?.canPublish === true;
-                    const isOwner = participant.identity === owner?.identity;
-                    const isSelf = participant.identity === participantIdentity;
-                    const name =
-                      participant.name || (isDebater ? "Debater" : "Spectator");
-                    const sideAttr = participant.attributes[SIDE_ATTRIBUTE];
-                    const sideIndex =
-                      sideAttr === "0" || sideAttr === "1"
-                        ? Number(sideAttr)
-                        : null;
-                    const sideName =
-                      sideIndex !== null ? sides[sideIndex] : null;
-
-                    return (
-                      <div
-                        key={participant.identity}
-                        className="flex items-center justify-between gap-2 py-2 text-sm"
-                      >
-                        <div className="flex min-w-0 flex-col">
-                          <span className="truncate font-medium">
-                            {name}
-                            {isSelf ? " (You)" : ""}
-                          </span>
-                          {sideName ? (
-                            <span className="truncate text-xs text-muted-foreground">
-                              {sideName}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5">
-                          {isOwner ? (
-                            <Badge variant="outline">Owner</Badge>
-                          ) : null}
-                          <Badge variant={isDebater ? "default" : "secondary"}>
-                            {isDebater ? "Debater" : "Spectator"}
-                          </Badge>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
+        <dl className="grid grid-cols-2 gap-6">
+          <div>
+            <dt className="text-xs text-muted-foreground">Sides filled</dt>
+            <dd className="font-editorial text-2xl font-semibold">
+              {debaterCount} of 2
+            </dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Spectators</dt>
@@ -594,72 +428,81 @@ function AudiencePanel({
               {spectatorCount}
             </dd>
           </div>
-        </div>
+        </dl>
       </section>
 
-      <section className="grid gap-3 px-4 pt-5 pb-4">
-        <div>
-          <h2 className="font-editorial text-lg font-semibold">
-            Audience vote
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {canVote
-              ? "Vote for the debater who presented the stronger argument. Tap again to undo."
-              : "Audience votes appear here as spectators choose the stronger argument."}
+      {showVoting ? (
+        <section className="grid gap-3 px-4 pt-5 pb-4">
+          <div>
+            <h2 className="font-editorial text-lg font-semibold">
+              Audience vote
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {canVote
+                ? "Vote for the debater who presented the stronger argument. Tap again to undo."
+                : "Audience votes appear here as spectators choose the stronger argument."}
+            </p>
+          </div>
+          {canVote ? (
+            <ToggleGroup
+              className="flex w-full gap-2"
+              disabled={isVoting}
+              value={selectedVote ? [selectedVote] : []}
+              onValueChange={(value) => void vote(value)}
+            >
+              {sides.map((side, index) => (
+                <ToggleGroupItem
+                  className={voteSurface + " " + voteSurfaceColors[index]}
+                  key={side}
+                  style={{ flexGrow: (voteCounts[index] ?? 0) + 1 }}
+                  value={String(index)}
+                >
+                  <span className="min-w-0 leading-tight">{side}</span>
+                  <span className="shrink-0 tabular-nums">
+                    {voteCounts[index]}{" "}
+                    {voteCounts[index] === 1 ? "vote" : "votes"}
+                  </span>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          ) : (
+            <dl
+              className="flex w-full gap-2 text-sm"
+              title="Only spectators can vote."
+            >
+              {sides.map((side, index) => (
+                <div
+                  className={voteSurface + " " + voteSurfaceColors[index]}
+                  key={side}
+                  style={{ flexGrow: (voteCounts[index] ?? 0) + 1 }}
+                >
+                  <dt className="min-w-0 leading-tight">{side}</dt>
+                  <dd className="shrink-0 font-medium tabular-nums">
+                    {voteCounts[index]}{" "}
+                    {voteCounts[index] === 1 ? "vote" : "votes"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {voteTotal}
+            {voteTotal === 1 ? " spectator vote" : " spectator votes"}
           </p>
-        </div>
-        {canVote ? (
-          <ToggleGroup
-            className="flex w-full gap-2"
-            disabled={isVoting}
-            value={selectedVote ? [selectedVote] : []}
-            onValueChange={(value) => void vote(value)}
-          >
-            {sides.map((side, index) => (
-              <ToggleGroupItem
-                className={voteSurface + " " + voteSurfaceColors[index]}
-                key={side}
-                style={{ flexGrow: (voteCounts[index] ?? 0) + 1 }}
-                value={String(index)}
-              >
-                <span className="min-w-0 leading-tight">{side}</span>
-                <span className="shrink-0 tabular-nums">
-                  {voteCounts[index]}{" "}
-                  {voteCounts[index] === 1 ? "vote" : "votes"}
-                </span>
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        ) : (
-          <dl
-            className="flex w-full gap-2 text-sm"
-            title="Only spectators can vote."
-          >
-            {sides.map((side, index) => (
-              <div
-                className={voteSurface + " " + voteSurfaceColors[index]}
-                key={side}
-                style={{ flexGrow: (voteCounts[index] ?? 0) + 1 }}
-              >
-                <dt className="min-w-0 leading-tight">{side}</dt>
-                <dd className="shrink-0 font-medium tabular-nums">
-                  {voteCounts[index]}{" "}
-                  {voteCounts[index] === 1 ? "vote" : "votes"}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        <p className="text-xs text-muted-foreground">
-          {voteTotal}
-          {voteTotal === 1 ? " spectator vote" : " spectator votes"}
-        </p>
-        {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-      </section>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+        </section>
+      ) : null}
+      {canBeginDebate ? (
+        <section className="px-4 py-3">
+          <Button className="w-full" type="button">
+            Begin Debate
+          </Button>
+        </section>
+      ) : null}
       <RoomChat canSend={canVote} participantIdentity={participantIdentity} />
     </aside>
   );
@@ -679,7 +522,6 @@ function LeaveButton({
 
   async function leave() {
     onLeaving();
-    clearStoredSession(join.topicId);
     await room.disconnect();
     await leaveTopic(join.topicId, join.participantIdentity);
     await navigate("/");
@@ -716,7 +558,6 @@ function MediaPermissionGuard({
     handled.current = true;
 
     void (async () => {
-      clearStoredSession(join.topicId);
       await room.disconnect();
       await leaveTopic(join.topicId, join.participantIdentity).catch(() => {});
       await navigate("/", {
@@ -729,7 +570,14 @@ function MediaPermissionGuard({
   return null;
 }
 
-export function DebateExperience({ join }: { join: JoinResult }) {
+export function DebateExperience({
+  initialLobbyState = "WAITING",
+  join,
+}: {
+  initialLobbyState?: DebateLobbyState;
+  join: JoinResult;
+}) {
+  const [lobbyState] = useState<DebateLobbyState>(initialLobbyState);
   const [roomError, setRoomError] = useState<string>();
   const [leaving, setLeaving] = useState(false);
   const [mediaPermissionFailed, setMediaPermissionFailed] = useState(false);
@@ -777,6 +625,7 @@ export function DebateExperience({ join }: { join: JoinResult }) {
           <DebateVideos sides={join.sides} />
           <AudiencePanel
             canVote={!isDebater}
+            lobbyState={lobbyState}
             participantIdentity={join.participantIdentity}
             sides={join.sides}
           />
@@ -788,22 +637,7 @@ export function DebateExperience({ join }: { join: JoinResult }) {
 }
 
 export default function Debate() {
-  const actionData = useActionData<typeof clientAction>();
-  const loaderData = useLoaderData<typeof clientLoader>();
-  const result = actionData ?? loaderData;
-
-  useEffect(() => {
-    if (result && !("code" in result)) {
-      setStoredSession(result.topicId, {
-        displayName: result.displayName,
-        participantIdentity: result.participantIdentity,
-        role: result.role,
-        sideIndex: result.sideIndex,
-        topicId: result.topicId,
-      });
-    }
-  }, [result]);
-
+  const result = useActionData<typeof clientAction>();
   if (!result) return <Navigate to="/" replace />;
 
   if ("code" in result) {
@@ -820,16 +654,7 @@ export default function Debate() {
           <Link className={buttonVariants({ variant: "outline" })} to="/">
             Choose another side
           </Link>
-          <Form className="flex flex-col gap-2 sm:flex-row" method="post">
-            <Input
-              autoComplete="nickname"
-              maxLength={40}
-              name="displayName"
-              pattern=".*\S.*"
-              placeholder="Display name"
-              required
-              title="Enter a display name."
-            />
+          <Form method="post">
             <input name="intent" type="hidden" value="spectator" />
             <Button type="submit">Spectate debate</Button>
           </Form>

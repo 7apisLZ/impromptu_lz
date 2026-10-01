@@ -2,6 +2,8 @@ import { healthContract } from "./health/contract.js";
 import { topicContracts } from "./topics/contract.js";
 
 export {
+  debateLobbyStateSchema,
+  type DebateLobbyState,
   errorSchema,
   joinBodySchema,
   type JoinInput,

@@ -62,9 +62,11 @@ export const topicRoutes: FastifyPluginAsyncZod<TopicRoutesOptions> = async (
         return reply.code(404).send({ message: "Topic not found" });
       }
 
-      const participantIdentity =
-        request.body.participantIdentity ?? randomUUID();
-      const displayName = request.body.displayName;
+      const participantIdentity = randomUUID();
+      const displayName =
+        request.body.intent === "debater"
+          ? request.body.displayName
+          : "Spectator";
       const allocationResult = await allocation.join(
         topic.id,
         participantIdentity,
